@@ -11,7 +11,7 @@ NON_HALAL_SDK_AR ?= ${PREFIX}-ar
 PROJECT_DIR = ${project}
 CPU = ${cpu}
 
-BUILD_FLAGS = -DSTM32H745
+BUILD_FLAGS = FLAGS
 BUILD_FLAGS += -pedantic-errors \
 	-Wall \
 	-Wextra \
@@ -22,8 +22,13 @@ BUILD_FLAGS += -pedantic-errors \
 	-Wlogical-op \
 	-Wsign-conversion \
 	-Wrestrict \
+	-Wno-comment \
 	-ffunction-sections
 BUILD_FLAGS += -${OPTIMIZATION_LEVEL}
+BUILD_FLAGS += -D__STATIC_INLINE="static inline"
+BUILD_FLAGS +="-mcpu=cortex-m7"
+BUILD_FLAGS += -DSTM32H745xx
+BUILD_FLAGS += -DCORE_CM7
 BUILD_FLAGS += ${EXTRA_BUILD_FLAGS}
 LINKER_FLAGS = --gc-sections
 ifneq (${STDLIB_PATH},)
@@ -31,11 +36,12 @@ ifneq (${STDLIB_PATH},)
 endif
 LINKER_FLAGS += ${EXTRA_LINKER_FLAGS}
 
-INCLUDE_DIRS =
-	--include=stdint.h \
-	-I Core \
-	-I Core/stm32h7xx_hal/inc \
-	-I Core/stm32h7xx_hal/inc/Legacy
+INCLUDE_DIRS = \
+	-include stdint.h \
+	-ICore \
+	-ICore/stm32h7xx_hal/inc/ \
+	-ICore/stm32h7xx_hal/inc/Legacy \
+	-ICore/system/include/cmsis
 # add project include dirs if config.txt file exists
 PRJ_SRC_DIRS = 
 ifneq ($(wildcard ${PROJECT_DIR}/config.txt),)
@@ -63,16 +69,18 @@ build-libs:
 	fi
 	@for source in Core/startup/*.S; do \
  		OUT_FILENAME=`echo $$source | awk -F'/' '{print $$NF}'`; \
- 		${NON_HALAL_SDK_CC} ${BUILD_FLAGS} ${INCLUDE_DIRS} -c $$source -o Core/$${OUT_FILENAME}.o; \
+ 		${NON_HALAL_SDK_CC} ${BUILD_FLAGS} -c $$source -o Core/$${OUT_FILENAME}.o; \
  	done
 	@echo "=====<Compiling STM32H7xx HAL>==================="
 	if [ -d "Core/stm32h7xx_hal/build" ]; then \
 		rm -r Core/stm32h7xx_hal/build; \
 	fi
 	mkdir Core/stm32h7xx_hal/build
+	echo ${INCLUDE_DIRS}
 	@for source in Core/stm32h7xx_hal/src/*.c; do \
 		OUT_FILENAME=`echo $$source | awk -F'/' '{print $$NF}'`; \
- 		${NON_HALAL_SDK_CC} ${BUILD_FLAGS} ${INCLUDE_DIRS} -c $$source -o Core/stm32h7xx_hal/build/$${OUT_FILENAME}.o; \
+		echo "${NON_HALAL_SDK_CC} ${BUILD_FLAGS} ${INCLUDE_DIRS} -c $$source -o Core/stm32h7xx_hal/build/$${OUT_FILENAME}.o"; \
+ 		${NON_HALAL_SDK_CC} ${BUILD_FLAGS} -Wno-comment -Wno-unused-parameter -Wno-sign-conversion ${INCLUDE_DIRS} -c $$source -o Core/stm32h7xx_hal/build/$${OUT_FILENAME}.o; \
  	done
 	@echo "=====<Making an archive>========================="
 	if [ -f "Core/libstm32-non-halal-sdk.a" ]; then \
@@ -80,7 +88,7 @@ build-libs:
 	fi
 	${NON_HALAL_SDK_AR} rcs Core/libstm32-non-halal-sdk.a Core/stm32h7xx_hal/build/*
 	@echo "=====<Totals>===================================="
-	${NON_HALAL_SIZE} -t --format=berkeley Core/*.o Core/libstm32-non-halal-sdk.a
+	${NON_HALAL_SDK_SIZE} -t --format=berkeley Core/*.o Core/libstm32-non-halal-sdk.a
 
 
 
@@ -103,23 +111,20 @@ clear-project:
 	fi
 
 .PHONY: build-cm7
-build-cm7:
+build-cm7: clear-project
 	@echo "=====<Compiling project>========================="
-	if [ -d "${PROJECT_DIR}/build" ]; then \
-		rm -rf ${PROJECT_DIR}/build; \
-	fi
 	mkdir ${PROJECT_DIR}/build
-	@if [ -f "{PROJECT_DIR}/*.c" ]; then \
+#	@if [ -f "${PROJECT_DIR}/*.c" ]; then 
 		for source in ${PROJECT_DIR}/*.c; do \
 			OUT_FILENAME=`echo $$source | awk -F'/' '{print $$NF}'`; \
-			echo "${NON_HALAL_SDK_CC} ${BUILD_FLAGS} ${INCLUDE_DIRS} -c $$source -o ${PROJECT_DIR}/build/$${OUT_FILENAME}.o" \
+			echo "${NON_HALAL_SDK_CC} ${BUILD_FLAGS} ${INCLUDE_DIRS} -c $$source -o ${PROJECT_DIR}/build/$${OUT_FILENAME}.o"; \
 			${NON_HALAL_SDK_CC} ${BUILD_FLAGS} ${INCLUDE_DIRS} -c $$source -o ${PROJECT_DIR}/build/$${OUT_FILENAME}.o; \
-		done; \
-	fi
-	@if [ -f {PROJECT_DIR}/*.S ]; then \
+		done; 
+#	fi
+	@if [ -f "${PROJECT_DIR}/*.S" ]; then \
 		for source in ${PROJECT_DIR}/*.S; do \
 			OUT_FILENAME=`echo $$source | awk -F'/' '{print $$NF}'`; \
-			echo "${NON_HALAL_SDK_CC} ${BUILD_FLAGS} -c $$source -o ${PROJECT_DIR}/build/$${OUT_FILENAME}.o" \
+			echo "${NON_HALAL_SDK_CC} ${BUILD_FLAGS} -c $$source -o ${PROJECT_DIR}/build/$${OUT_FILENAME}.o"; \
 			${NON_HALAL_SDK_CC} ${BUILD_FLAGS} -c $$source -o ${PROJECT_DIR}/build/$${OUT_FILENAME}.o; \
 		done \
 	fi
@@ -148,7 +153,3 @@ build-project:
 
 disasm-project:
 	${OBJDUMP} -S ${PROJECT_DIR}/firmware.elf > ${PROJECT_DIR}/firmware.lst
-
-clear-project:
-	rm -r ${PROJECT_DIR}/build
-	rm ${PROJECT_DIR}/*.elf ${PROJECT_DIR}/*.hex
