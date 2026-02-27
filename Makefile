@@ -11,7 +11,7 @@ NON_HALAL_SDK_AR ?= ${PREFIX}-ar
 PROJECT_DIR = ${project}
 CPU = ${cpu}
 
-BUILD_FLAGS = FLAGS
+BUILD_FLAGS = ${FLAGS}
 BUILD_FLAGS += -pedantic-errors \
 	-Wall \
 	-Wextra \
@@ -69,6 +69,7 @@ build-libs:
 	fi
 	@for source in Core/startup/*.S; do \
  		OUT_FILENAME=`echo $$source | awk -F'/' '{print $$NF}'`; \
+		echo "${NON_HALAL_SDK_CC} ${BUILD_FLAGS} -c $$source -o Core/$${OUT_FILENAME}.o"; \
  		${NON_HALAL_SDK_CC} ${BUILD_FLAGS} -c $$source -o Core/$${OUT_FILENAME}.o; \
  	done
 	@echo "=====<Compiling STM32H7xx HAL>==================="
