@@ -9,7 +9,28 @@ NON_HALAL_SDK_NM ?= ${PREFIX}-nm
 NON_HALAL_SDK_AR ?= ${PREFIX}-ar
 
 PROJECT_DIR = ${project}
-CPU = ${cpu}
+
+# Target microcontroller: STM32H7B0, STM32H745
+TARGET ?= STM32H7B0
+# Firmware location: FLASH, RAM
+FIRMWARE_LOCATION ?= FLASH
+
+ifeq (${TARGET},STM32H7B0)
+	ifeq (${FIRMWARE_LOCATION},FLASH)
+		LDSCRIPT = Core/linkerscript/stm32h7b0_flash.ld
+	else
+		LDSCRIPT = Core/linkerscript/stm32h7b0_ram.ld
+	endif
+	STARTUP = Core/startup/stm32h7b0_startup.S
+endif
+ifeq (${TARGET},STM32H745)
+	ifeq (${FIRMWARE_LOCATION},FLASH)
+		LDSCRIPT = Core/linkerscript/stm32h745_cm7_flash.ld
+	else
+		LDSCRIPT = Core/linkerscript/stm32h745_cm7_ram.ld
+	endif
+	STARTUP = Core/startup/stm32h745_cm7_startup.S
+endif
 
 BUILD_FLAGS = ${FLAGS} -nostdlib --specs=nano.specs --specs=nosys.specs
 BUILD_FLAGS += -pedantic-errors \
@@ -30,7 +51,7 @@ BUILD_FLAGS += -pedantic-errors \
 BUILD_FLAGS += -${OPTIMIZATION_LEVEL}
 BUILD_FLAGS += -D__STATIC_INLINE="static inline"
 BUILD_FLAGS += -mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard
-BUILD_FLAGS += -DSTM32H745xx
+BUILD_FLAGS += -D${TARGET}xx
 BUILD_FLAGS += -DCORE_CM7
 BUILD_FLAGS += ${EXTRA_BUILD_FLAGS}
 LINKER_FLAGS = --gc-sections
@@ -66,14 +87,16 @@ endif
 
 .PHONY: build-libs
 build-libs:
+	@echo "Using '${STARTUP}' as startup file"
 	@echo "=====<Compiling startup files>==================="
-	if [ -f "Core/*.o" ]; then \
-		rm Core/*.o; \
+	if [ -d "Core/startup/build" ]; then \
+		rm -r Core/startup/build; \
 	fi
+	mkdir Core/startup/build
 	@for source in Core/startup/*.S; do \
  		OUT_FILENAME=`echo $$source | awk -F'/' '{print $$NF}'`; \
-		echo "${NON_HALAL_SDK_CC} ${BUILD_FLAGS} -c $$source -o Core/$${OUT_FILENAME}.o"; \
- 		${NON_HALAL_SDK_CC} ${BUILD_FLAGS} -c $$source -o Core/$${OUT_FILENAME}.o; \
+		echo "${NON_HALAL_SDK_CC} ${BUILD_FLAGS} -c $$source -o Core/startup/build/$${OUT_FILENAME}.o"; \
+ 		${NON_HALAL_SDK_CC} ${BUILD_FLAGS} -c $$source -o Core/startup/build/$${OUT_FILENAME}.o; \
  	done
 	@echo "=====<Compiling STM32H7xx HAL>==================="
 	if [ -d "Core/stm32h7xx_hal/build" ]; then \
@@ -90,7 +113,7 @@ build-libs:
 	if [ -f "Core/libstm32-non-halal-sdk.a" ]; then \
 		rm Core/libstm32-non-halal-sdk.a; \
 	fi
-	${NON_HALAL_SDK_AR} rcs Core/libstm32-non-halal-sdk.a Core/stm32h7xx_hal/build/*
+	${NON_HALAL_SDK_AR} rcs Core/libstm32-non-halal-sdk.a Core/stm32h7xx_hal/build/* Core/startup/build/*
 	@echo "=====<Totals>===================================="
 	${NON_HALAL_SDK_SIZE} -t --format=berkeley Core/*.o Core/libstm32-non-halal-sdk.a
 
@@ -144,7 +167,7 @@ build-project:
 		echo "${NON_HALAL_SDK_CC} ${BUILD_FLAGS} ${INCLUDE_DIRS} -c $$source -o ${PROJECT_DIR}/build/$${OUT_FILENAME}.o"; \
 		${NON_HALAL_SDK_CC} ${BUILD_FLAGS} ${INCLUDE_DIRS} -c $$source -o ${PROJECT_DIR}/build/$${OUT_FILENAME}.o; \
 	done
-	@if [ -f {PROJECT_DIR}/*.S ]; then \
+	@if [ -f "${PROJECT_DIR}/*.S" ]; then \
 		for source in ${PROJECT_DIR}/*.S; do \
 			OUT_FILENAME=`echo $$source | awk -F'/' '{print $$NF}'`; \
 			${CC} ${BUILD_FLAGS} -c $$source -o ${PROJECT_DIR}/build/$${OUT_FILENAME}.o; \
