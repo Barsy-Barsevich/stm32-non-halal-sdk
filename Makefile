@@ -186,3 +186,7 @@ build-project:
 
 disasm-project:
 	${OBJDUMP} -S ${PROJECT_DIR}/firmware.elf > ${PROJECT_DIR}/firmware.lst
+
+.PHONY: upload-dfu
+upload-dfu:
+	dfu-util -a 0 --dfuse-address 0x08000000 -D ${PROJECT_DIR}/firmware.bin
