@@ -11,7 +11,7 @@ NON_HALAL_SDK_AR ?= ${PREFIX}-ar
 PROJECT_DIR = ${project}
 CPU = ${cpu}
 
-BUILD_FLAGS = ${FLAGS}
+BUILD_FLAGS = ${FLAGS} -nostdlib --specs=nano.specs --specs=nosys.specs
 BUILD_FLAGS += -pedantic-errors \
 	-Wall \
 	-Wextra \
@@ -23,10 +23,13 @@ BUILD_FLAGS += -pedantic-errors \
 	-Wsign-conversion \
 	-Wrestrict \
 	-Wno-comment \
+	-Wno-comment \
+	-Wno-unused-parameter \
+	-Wno-sign-conversion \
 	-ffunction-sections
 BUILD_FLAGS += -${OPTIMIZATION_LEVEL}
 BUILD_FLAGS += -D__STATIC_INLINE="static inline"
-BUILD_FLAGS +="-mcpu=cortex-m7"
+BUILD_FLAGS += -mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard
 BUILD_FLAGS += -DSTM32H745xx
 BUILD_FLAGS += -DCORE_CM7
 BUILD_FLAGS += ${EXTRA_BUILD_FLAGS}
@@ -81,7 +84,7 @@ build-libs:
 	@for source in Core/stm32h7xx_hal/src/*.c; do \
 		OUT_FILENAME=`echo $$source | awk -F'/' '{print $$NF}'`; \
 		echo "${NON_HALAL_SDK_CC} ${BUILD_FLAGS} ${INCLUDE_DIRS} -c $$source -o Core/stm32h7xx_hal/build/$${OUT_FILENAME}.o"; \
- 		${NON_HALAL_SDK_CC} ${BUILD_FLAGS} -Wno-comment -Wno-unused-parameter -Wno-sign-conversion ${INCLUDE_DIRS} -c $$source -o Core/stm32h7xx_hal/build/$${OUT_FILENAME}.o; \
+ 		${NON_HALAL_SDK_CC} ${BUILD_FLAGS} ${INCLUDE_DIRS} -c $$source -o Core/stm32h7xx_hal/build/$${OUT_FILENAME}.o; \
  	done
 	@echo "=====<Making an archive>========================="
 	if [ -f "Core/libstm32-non-halal-sdk.a" ]; then \
@@ -138,7 +141,8 @@ build-project:
 	mkdir ${PROJECT_DIR}/build
 	for source in ${PROJECT_DIR}/*.c; do \
 		OUT_FILENAME=`echo $$source | awk -F'/' '{print $$NF}'`; \
-		${CC} ${BUILD_FLAGS} ${INCLUDE_DIRS} -c $$source -o ${PROJECT_DIR}/build/$${OUT_FILENAME}.o; \
+		echo "${NON_HALAL_SDK_CC} ${BUILD_FLAGS} ${INCLUDE_DIRS} -c $$source -o ${PROJECT_DIR}/build/$${OUT_FILENAME}.o"; \
+		${NON_HALAL_SDK_CC} ${BUILD_FLAGS} ${INCLUDE_DIRS} -c $$source -o ${PROJECT_DIR}/build/$${OUT_FILENAME}.o; \
 	done
 	@if [ -f {PROJECT_DIR}/*.S ]; then \
 		for source in ${PROJECT_DIR}/*.S; do \
@@ -147,10 +151,15 @@ build-project:
 		done \
 	fi
 	@echo "=====<Linking everything together>==============="
-	${LD} -T Core/linker.ld ${LINKER_FLAGS} --format=elf32-littleriscv --output=${PROJECT_DIR}/firmware.elf -Map ${PROJECT_DIR}/firmware.map ${PROJECT_DIR}/build/*.o Core/*.a -lc -lgloss components/*/*.a
-	${OBJCOPY} -O ihex ${PROJECT_DIR}/firmware.elf ${PROJECT_DIR}/firmware.hex
-	${OBJCOPY} -O binary ${PROJECT_DIR}/firmware.elf ${PROJECT_DIR}/firmware.bin
-	${SIZE} -t --format=berkeley ${PROJECT_DIR}/firmware.elf
+	${NON_HALAL_SDK_CC} -mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard -T Core/linkerscript/stm32h745zit6_cm7_flash.ld \
+		${PROJECT_DIR}/build/*.o \
+		Core/*.a \
+		Core/stm32h745zit6_cm7_startup.S.o \
+		-Wl,-Map,${PROJECT_DIR}/firmware.map \
+		-o ${PROJECT_DIR}/firmware.elf -nostdlib
+	${NON_HALAL_SDK_OBJCOPY} -O ihex ${PROJECT_DIR}/firmware.elf ${PROJECT_DIR}/firmware.hex
+	${NON_HALAL_SDK_OBJCOPY} -O binary ${PROJECT_DIR}/firmware.elf ${PROJECT_DIR}/firmware.bin
+	${NON_HALAL_SDK_SIZE} -t --format=berkeley ${PROJECT_DIR}/firmware.elf
 
 disasm-project:
 	${OBJDUMP} -S ${PROJECT_DIR}/firmware.elf > ${PROJECT_DIR}/firmware.lst
