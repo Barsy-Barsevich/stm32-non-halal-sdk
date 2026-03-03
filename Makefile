@@ -21,7 +21,7 @@ ifeq (${TARGET},STM32H7B0)
 	else
 		LDSCRIPT = Core/linkerscript/stm32h7b0_ram.ld
 	endif
-	STARTUP = Core/startup/stm32h7b0_startup.S
+	STARTUP = stm32h7b0_startup.S
 endif
 ifeq (${TARGET},STM32H745)
 	ifeq (${FIRMWARE_LOCATION},FLASH)
@@ -29,7 +29,7 @@ ifeq (${TARGET},STM32H745)
 	else
 		LDSCRIPT = Core/linkerscript/stm32h745_cm7_ram.ld
 	endif
-	STARTUP = Core/startup/stm32h745_cm7_startup.S
+	STARTUP = stm32h745_cm7_startup.S
 endif
 
 BUILD_FLAGS = ${FLAGS} -nostdlib --specs=nano.specs --specs=nosys.specs
@@ -93,11 +93,7 @@ build-libs:
 		rm -r Core/startup/build; \
 	fi
 	mkdir Core/startup/build
-	@for source in Core/startup/*.S; do \
- 		OUT_FILENAME=`echo $$source | awk -F'/' '{print $$NF}'`; \
-		echo "${NON_HALAL_SDK_CC} ${BUILD_FLAGS} -c $$source -o Core/startup/build/$${OUT_FILENAME}.o"; \
- 		${NON_HALAL_SDK_CC} ${BUILD_FLAGS} -c $$source -o Core/startup/build/$${OUT_FILENAME}.o; \
- 	done
+	${NON_HALAL_SDK_CC} ${BUILD_FLAGS} -c Core/startup/${STARTUP} -o Core/startup/build/${STARTUP}
 	@echo "=====<Compiling STM32H7xx HAL>==================="
 	if [ -d "Core/stm32h7xx_hal/build" ]; then \
 		rm -r Core/stm32h7xx_hal/build; \
@@ -174,10 +170,9 @@ build-project:
 		done \
 	fi
 	@echo "=====<Linking everything together>==============="
-	${NON_HALAL_SDK_CC} -mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard -T Core/linkerscript/stm32h745zit6_cm7_flash.ld \
+	${NON_HALAL_SDK_CC} -mcpu=cortex-m7 -mthumb -mfpu=fpv5-d16 -mfloat-abi=hard -T ${LDSCRIPT} \
 		${PROJECT_DIR}/build/*.o \
 		Core/*.a \
-		Core/stm32h745zit6_cm7_startup.S.o \
 		-Wl,-Map,${PROJECT_DIR}/firmware.map \
 		-o ${PROJECT_DIR}/firmware.elf -nostdlib
 	${NON_HALAL_SDK_OBJCOPY} -O ihex ${PROJECT_DIR}/firmware.elf ${PROJECT_DIR}/firmware.hex
@@ -185,7 +180,7 @@ build-project:
 	${NON_HALAL_SDK_SIZE} -t --format=berkeley ${PROJECT_DIR}/firmware.elf
 
 disasm-project:
-	${OBJDUMP} -S ${PROJECT_DIR}/firmware.elf > ${PROJECT_DIR}/firmware.lst
+	${NON_HALAL_SDK_OBJDUMP} -S ${PROJECT_DIR}/firmware.elf > ${PROJECT_DIR}/firmware.lst
 
 .PHONY: upload-dfu
 upload-dfu:
