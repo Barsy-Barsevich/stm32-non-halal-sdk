@@ -120,17 +120,20 @@ clear-project:
 	if [ -d "${PROJECT_DIR}/build" ]; then \
 		rm -r ${PROJECT_DIR}/build; \
 	fi
-	if [ -f "${PROJECT_DIR}/*.elf" ]; then \
-		rm ${PROJECT_DIR}/*.elf; \
+	if [ -f "${PROJECT_DIR}/firmware.elf" ]; then \
+		rm ${PROJECT_DIR}/firmware.elf; \
 	fi
-	if [ -f "${PROJECT_DIR}/*.hex" ]; then \
-		rm ${PROJECT_DIR}/*.hex; \
+	if [ -f "${PROJECT_DIR}/firmware.hex" ]; then \
+		rm ${PROJECT_DIR}/firmware.hex; \
 	fi
-	if [ -f "${PROJECT_DIR}/*.bin" ]; then \
-		rm ${PROJECT_DIR}/*.bin; \
+	if [ -f "${PROJECT_DIR}/firmware.bin" ]; then \
+		rm ${PROJECT_DIR}/firmware.bin; \
 	fi
-	if [ -f "${PROJECT_DIR}/*.map" ]; then \
-		rm ${PROJECT_DIR}/*.map; \
+	if [ -f "${PROJECT_DIR}/firmware.map" ]; then \
+		rm ${PROJECT_DIR}/firmware.map; \
+	fi
+	if [ -f "${PROJECT_DIR}/firmware.lst" ]; then \
+		rm ${PROJECT_DIR}/firmware.lst; \
 	fi
 
 .PHONY: build-cm7
