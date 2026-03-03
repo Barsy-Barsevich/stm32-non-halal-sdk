@@ -1,3 +1,11 @@
+.obsidian/*
 Core/*.o
 Core/*.a
 Core/stm32h7xx_hal/build/*.o
+Core/startup/build/*
+examples/*/build/*
+examples/*/*.bin
+examples/*/*.elf
+examples/*/*.hex
+examples/*/*.map
+examples/*/*.lst
