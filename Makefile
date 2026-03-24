@@ -189,6 +189,10 @@ disasm-project:
 upload-dfu:
 	dfu-util -a 0 --dfuse-address 0x08000000 -D ${PROJECT_DIR}/firmware.bin
 
+.PHONY: upload-openocd
+upload-openocd:
+	openocd -f interface/stlink.cfg -f target/stm32h7x.cfg -c "program 0x08000000 ${PROJECT_DIR}/firmware.bin verify reset exit"
+
 .PHONY: help
 help:
 	@echo "Usage"
@@ -202,4 +206,4 @@ help:
 	@echo "- make disasm-project project=../XXX/yourproject"
 	@echo "(4) Flashing the firmware"
 	@echo "- make upload-boot project=../XXX/yourproject"
-	@echo "- openocd -f interface/stlink.cfg -f target/stm32h7x.cfg -c \"\""
+	@echo "- make upload-openocd project=../XXX/yourproject"
