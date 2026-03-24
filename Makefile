@@ -59,6 +59,15 @@ ifneq (${STDLIB_PATH},)
 	LINKER_FLAGS += -L ${STDLIB_PATH}
 endif
 LINKER_FLAGS += ${EXTRA_LINKER_FLAGS}
+CORE_SYSTEM = 
+CORE_SYSTEM_SRC = 
+ifeq (${TARGET},STM32H745)
+	CORE_SYSTEM = Core/system/build/system_stm32f745xx.c.o
+	CORE_SYSTEM_SRC = Core/system/source/system_stm32f745xx.c
+else ifeq (${TARGET},STM32H7B0)
+	CORE_SYSTEM = Core/system/build/system_stm32h7b0xx.c.o
+	CORE_SYSTEM_SRC = Core/system/source/system_stm32h7b0xx.c
+endif
 
 INCLUDE_DIRS = \
 	-include stdint.h \
@@ -75,29 +84,30 @@ ifneq ($(wildcard ${PROJECT_DIR}/config.txt),)
 endif
 
 .PHONY: clear-libs
-	if [ -f "Core/*.o" ]; then \
-		rm Core/*.o; \
-	fi
-	if [ -d "Core/stm32h7xx_hal/build" ]; then \
-		rm -r Core/stm32h7xx_hal/build; \
-	fi
+clear-libs:
 	if [ -f "Core/*.a" ]; then \
 		rm Core/*.a; \
 	fi
-
-.PHONY: build-libs
-build-libs:
-	@echo "Using '${STARTUP}' as startup file"
-	@echo "=====<Compiling startup files>==================="
+	if [ -f "Core/*.o" ]; then \
+		rm Core/*.o; \
+	fi
 	if [ -d "Core/startup/build" ]; then \
 		rm -r Core/startup/build; \
 	fi
-	mkdir Core/startup/build
-	${NON_HALAL_SDK_CC} ${BUILD_FLAGS} -c Core/startup/${STARTUP} -o Core/startup/build/${STARTUP}
-	@echo "=====<Compiling STM32H7xx HAL>==================="
 	if [ -d "Core/stm32h7xx_hal/build" ]; then \
 		rm -r Core/stm32h7xx_hal/build; \
 	fi
+	if [ -d "Core/system/build" ]; then \
+		rm -r Core/system/build; \
+	fi
+
+.PHONY: build-libs
+build-libs: clear-libs
+	@echo "Using '${STARTUP}' as startup file"
+	@echo "=====<Compiling startup files>==================="
+	mkdir Core/startup/build
+	${NON_HALAL_SDK_CC} ${BUILD_FLAGS} -c Core/startup/${STARTUP} -o Core/startup/build/${STARTUP}
+	@echo "=====<Compiling STM32H7xx HAL>==================="
 	mkdir Core/stm32h7xx_hal/build
 	echo ${INCLUDE_DIRS}
 	@for source in Core/stm32h7xx_hal/src/*.c; do \
@@ -105,11 +115,11 @@ build-libs:
 		echo "${NON_HALAL_SDK_CC} ${BUILD_FLAGS} ${INCLUDE_DIRS} -c $$source -o Core/stm32h7xx_hal/build/$${OUT_FILENAME}.o"; \
  		${NON_HALAL_SDK_CC} ${BUILD_FLAGS} ${INCLUDE_DIRS} -c $$source -o Core/stm32h7xx_hal/build/$${OUT_FILENAME}.o; \
  	done
+	@echo "=====<Compiling Core system files for MCUs>"
+	mkdir Core/system/build
+	${NON_HALAL_SDK_CC} ${BUILD_FLAGS} ${INCLUDE_DIRS} -c ${CORE_SYSTEM_SRC} -o ${CORE_SYSTEM}
 	@echo "=====<Making an archive>========================="
-	if [ -f "Core/libstm32-non-halal-sdk.a" ]; then \
-		rm Core/libstm32-non-halal-sdk.a; \
-	fi
-	${NON_HALAL_SDK_AR} rcs Core/libstm32-non-halal-sdk.a Core/stm32h7xx_hal/build/* Core/startup/build/*
+	${NON_HALAL_SDK_AR} rcs Core/libstm32-non-halal-sdk.a Core/stm32h7xx_hal/build/* Core/startup/build/* Core/system/build/*
 	@echo "=====<Totals>===================================="
 	${NON_HALAL_SDK_SIZE} -t --format=berkeley Core/*.o Core/libstm32-non-halal-sdk.a
 
@@ -136,30 +146,8 @@ clear-project:
 		rm ${PROJECT_DIR}/firmware.lst; \
 	fi
 
-.PHONY: build-cm7
-build-cm7: clear-project
+build-project: clear-project
 	@echo "=====<Compiling project>========================="
-	mkdir ${PROJECT_DIR}/build
-#	@if [ -f "${PROJECT_DIR}/*.c" ]; then 
-		for source in ${PROJECT_DIR}/*.c; do \
-			OUT_FILENAME=`echo $$source | awk -F'/' '{print $$NF}'`; \
-			echo "${NON_HALAL_SDK_CC} ${BUILD_FLAGS} ${INCLUDE_DIRS} -c $$source -o ${PROJECT_DIR}/build/$${OUT_FILENAME}.o"; \
-			${NON_HALAL_SDK_CC} ${BUILD_FLAGS} ${INCLUDE_DIRS} -c $$source -o ${PROJECT_DIR}/build/$${OUT_FILENAME}.o; \
-		done; 
-#	fi
-	@if [ -f "${PROJECT_DIR}/*.S" ]; then \
-		for source in ${PROJECT_DIR}/*.S; do \
-			OUT_FILENAME=`echo $$source | awk -F'/' '{print $$NF}'`; \
-			echo "${NON_HALAL_SDK_CC} ${BUILD_FLAGS} -c $$source -o ${PROJECT_DIR}/build/$${OUT_FILENAME}.o"; \
-			${NON_HALAL_SDK_CC} ${BUILD_FLAGS} -c $$source -o ${PROJECT_DIR}/build/$${OUT_FILENAME}.o; \
-		done \
-	fi
-
-build-project:
-	@echo "=====<Compiling project>========================="
-	if [ -d "${PROJECT_DIR}/build" ]; then \
-		rm -rf ${PROJECT_DIR}/build; \
-	fi
 	mkdir ${PROJECT_DIR}/build
 	for source in ${PROJECT_DIR}/*.c; do \
 		OUT_FILENAME=`echo $$source | awk -F'/' '{print $$NF}'`; \
