@@ -188,3 +188,18 @@ disasm-project:
 .PHONY: upload-dfu
 upload-dfu:
 	dfu-util -a 0 --dfuse-address 0x08000000 -D ${PROJECT_DIR}/firmware.bin
+
+.PHONY: help
+help:
+	@echo "Usage"
+	@echo "(1) Building SDK libs"
+	@echo "- make build-libs TARGET=STM32H745 -j$$(nproc)"
+	@echo "- make build-libs TARGET=STM32H7B0 -j$$(nproc)"
+	@echo "(2) Building project"
+	@echo "- make build-project project=../XXX/yourproject TARGET=STM32H745"
+	@echo "- make build-project project=../XXX/yourproject TARGET=STM32H7B0"
+	@echo "(3) Disassembling the project"
+	@echo "- make disasm-project project=../XXX/yourproject"
+	@echo "(4) Flashing the firmware"
+	@echo "- make upload-boot project=../XXX/yourproject"
+	@echo "- openocd -f interface/stlink.cfg -f target/stm32h7x.cfg -c \"\""
