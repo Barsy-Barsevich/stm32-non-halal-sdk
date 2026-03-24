@@ -3,6 +3,7 @@ Core/*.o
 Core/*.a
 Core/stm32h7xx_hal/build/*.o
 Core/startup/build/*
+Core/system/build/*
 examples/*/build/*
 examples/*/*.bin
 examples/*/*.elf
